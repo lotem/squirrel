@@ -98,8 +98,7 @@ debug: $(DEPS_CHECK)
 .PHONY: sparkle copy-sparkle-framework
 
 $(SPARKLE_FRAMEWORK):
-	$(MAKE) -C sparkle
-	$(MAKE) copy-sparkle-framework
+	$(MAKE) sparkle
 
 sparkle:
 	xcodebuild -project Sparkle/Sparkle.xcodeproj -configuration Release $(BUILD_SETTINGS) build
@@ -108,6 +107,9 @@ sparkle:
 copy-sparkle-framework:
 	mkdir -p Frameworks
 	cp -RP Sparkle/build/Release/Sparkle.framework Frameworks/
+
+clean-sparkle:
+	rm -rf Frameworks/* > /dev/null 2>&1 || true
 
 .PHONY: package archive sign-archive
 
@@ -148,8 +150,8 @@ clean:
 	rm lib/* > /dev/null 2>&1 || true
 	rm data/plum/* > /dev/null 2>&1 || true
 	rm data/opencc/* > /dev/null 2>&1 || true
-	rm -rf Frameworks/* > /dev/null 2>&1 || true
 
 clean-deps:
 	$(MAKE) -C plum clean
 	$(MAKE) -C librime xcode/clean
+	$(MAKE) -C clean-sparkle

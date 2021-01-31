@@ -4,6 +4,7 @@ Squirrel.xcodeproj/project.xcworkspace/
 Squirrel.xcodeproj/xcuserdata/
 build/
 build.log
+Frameworks/*
 bin/*
 lib/*
 data/opencc/
