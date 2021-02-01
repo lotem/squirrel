@@ -154,4 +154,4 @@ clean:
 clean-deps:
 	$(MAKE) -C plum clean
 	$(MAKE) -C librime xcode/clean
-	$(MAKE) -C clean-sparkle
+	$(MAKE) clean-sparkle
