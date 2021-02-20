@@ -50,7 +50,11 @@ void show_message(const char* msg_text, const char* msg_id) {
 static void show_status_message(const char* msg_text, const char* msg_id) {
   SquirrelPanel* panel = NSApp.squirrelAppDelegate.panel;
   if (panel) {
-    [panel updateStatus:NSLocalizedString(@(msg_text), nil)];
+    NSString *message = NSLocalizedString(@(msg_text), nil);
+    if ([[message substringToIndex:1]  isEqual: @"!"]) {
+      message = [message substringFromIndex:1];
+    }
+    [panel updateStatus: message];
   }
 }
 
@@ -84,25 +88,7 @@ void notification_handler(void* context_object, RimeSessionId session_id,
   }
   // option change
   if (!strcmp(message_type, "option")) {
-    if (!strcmp(message_value, "ascii_mode") ||
-        !strcmp(message_value, "!ascii_mode")) {
-      static bool was_ascii_mode = false;
-      bool is_ascii_mode = (message_value[0] != '!');
-      if (is_ascii_mode != was_ascii_mode) {
-        was_ascii_mode = is_ascii_mode;
-        show_status_message(message_value, message_type);
-      }
-    }
-    else if (!strcmp(message_value, "full_shape") ||
-             !strcmp(message_value, "!full_shape") ||
-             !strcmp(message_value, "ascii_punct") ||
-             !strcmp(message_value, "!ascii_punct") ||
-             !strcmp(message_value, "simplification") ||
-             !strcmp(message_value, "!simplification") ||
-             !strcmp(message_value, "extended_charset") ||
-             !strcmp(message_value, "!extended_charset")) {
-      show_status_message(message_value, message_type);
-    }
+    show_status_message(message_value, message_type);
   }
 }
 

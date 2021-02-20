@@ -43,7 +43,7 @@ style:
   #label_font_face: 'Lucida Grande'
   label_font_point: 18
   #comment_font_face: 'Lucida Grande'
-  comment_font_point: 18
+  #comment_font_point: 18
 
 preset_color_schemes:
   native:
