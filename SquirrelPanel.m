@@ -172,7 +172,6 @@ preeditHighlightedAttrs:(NSMutableDictionary *)preeditHighlightedAttrs {
 @property(nonatomic, readonly) NSRect contentRect;
 @property(nonatomic, readonly) BOOL isDark;
 @property(nonatomic, strong, readonly) SquirrelTheme *currentTheme;
-@property(nonatomic, readonly) CGFloat textFrameWidth;
 @property(nonatomic, assign) CGFloat seperatorWidth;
 
 - (BOOL)isFlipped;
@@ -218,6 +217,7 @@ SquirrelTheme *_darkTheme;
   }
   // Use textStorage to store text and manage all text layout and draws
   NSTextContainer *textContainer = [[NSTextContainer alloc] initWithSize:NSZeroSize];
+  textContainer.lineFragmentPadding = 0.0;
   NSLayoutManager *layoutManager = [[NSLayoutManager alloc] init];
   [layoutManager addTextContainer:textContainer];
   _text = [[NSTextStorage alloc] init];
@@ -230,18 +230,10 @@ SquirrelTheme *_darkTheme;
   return self;
 }
 
-// The textStorage layout will have a 5px empty edge on both sides
-- (CGFloat)textFrameWidth {
-  return [_text.layoutManagers[0] boundingRectForGlyphRange:NSMakeRange(0, 0) inTextContainer:_text.layoutManagers[0].textContainers[0]].origin.x;
-}
-
 // Get the rectangle containing entire contents, expensive to calculate
 - (NSRect)contentRect {
   NSRange glyphRange = [_text.layoutManagers[0] glyphRangeForTextContainer:_text.layoutManagers[0].textContainers[0]];
   NSRect rect = [_text.layoutManagers[0] boundingRectForGlyphRange:glyphRange inTextContainer:_text.layoutManagers[0].textContainers[0]];
-  CGFloat frameWidth = self.textFrameWidth;
-  rect.origin.x -= frameWidth;
-  rect.size.width += frameWidth * 2;
   return rect;
 }
 
@@ -359,7 +351,7 @@ BOOL nearEmptyRect(NSRect rect) {
   *leadingRect = NSZeroRect;
   *bodyRect = boundingRect;
   *trailingRect = NSZeroRect;
-  if (boundingRect.origin.x <= self.textFrameWidth +1 && fullRangeInBoundingRect.location < glyphRange.location) {
+  if (boundingRect.origin.x <= 1 && fullRangeInBoundingRect.location < glyphRange.location) {
     *leadingRect = [layoutManager boundingRectForGlyphRange:NSMakeRange(fullRangeInBoundingRect.location, glyphRange.location-fullRangeInBoundingRect.location) inTextContainer:textContainer];
     if (!nearEmptyRect(*leadingRect)) {
       bodyRect->size.height -= leadingRect->size.height;
@@ -480,7 +472,6 @@ void expand(NSMutableArray<NSValue *> *vertex, NSRect innerBorder, NSRect outerB
 
 // All draws happen here
 - (void)drawRect:(NSRect)dirtyRect {
-  double textFrameWidth = self.textFrameWidth;
   NSBezierPath *backgroundPath;
   NSBezierPath *borderPath;
   NSBezierPath *highlightedPath;
@@ -505,7 +496,7 @@ void expand(NSMutableArray<NSValue *> *vertex, NSRect innerBorder, NSRect outerB
     preeditRect.size.height += theme.edgeInset.height + theme.preeditLinespace / 2 + theme.hilitedCornerRadius / 2;
     preeditRect.origin = NSMakePoint(textField.origin.x - theme.edgeInset.width, textField.origin.y - theme.edgeInset.height);
     if (_highlightedRange.length == 0) {
-      preeditRect.size.height += theme.edgeInset.height - theme.preeditLinespace / 2;
+      preeditRect.size.height += theme.edgeInset.height - theme.preeditLinespace / 2 - theme.hilitedCornerRadius / 2;
     }
     if (theme.preeditBackgroundColor != nil) {
       preeditPath = drawSmoothLines(rectVertex(preeditRect), 0, 0);
@@ -515,8 +506,8 @@ void expand(NSMutableArray<NSValue *> *vertex, NSRect innerBorder, NSRect outerB
   // Draw highlighted Rect
   if (_highlightedRange.length > 0 && theme.highlightedStripColor != nil) {
     NSRect innerBox = backgroundRect;
-    innerBox.size.width -= (theme.edgeInset.width + 1 + textFrameWidth) * 2;
-    innerBox.origin.x += theme.edgeInset.width + 1 + textFrameWidth;
+    innerBox.size.width -= (theme.edgeInset.width + 1) * 2;
+    innerBox.origin.x += theme.edgeInset.width + 1;
     if (_preeditRange.length == 0) {
       innerBox.origin.y += theme.edgeInset.height + 1;
       innerBox.size.height -= (theme.edgeInset.height + 1) * 2;
@@ -593,8 +584,8 @@ void expand(NSMutableArray<NSValue *> *vertex, NSRect innerBorder, NSRect outerB
     [self multilineRectForRange:_highlightedPreeditRange leadingRect:&leadingRect bodyRect:&bodyRect trailingRect:&trailingRect];
 
     NSRect innerBox = preeditRect;
-    innerBox.size.width -= (theme.edgeInset.width + 1 + textFrameWidth) * 2;
-    innerBox.origin.x += theme.edgeInset.width + 1 + textFrameWidth;
+    innerBox.size.width -= (theme.edgeInset.width + 1) * 2;
+    innerBox.origin.x += theme.edgeInset.width + 1;
     innerBox.origin.y += theme.edgeInset.height + 1;
     if (_highlightedRange.length == 0) {
       innerBox.size.height -= (theme.edgeInset.height + 1) * 2;
@@ -755,15 +746,15 @@ void convertToVerticalGlyph(NSMutableAttributedString *originalText, NSRange str
   }
 }
 
-void changeEmojiSize(NSMutableAttributedString *text, CGFloat emojiFontSize) {
+void fixDefaultFont(NSMutableAttributedString *text) {
   [text fixFontAttributeInRange:NSMakeRange(0, text.length)];
-  NSFont *emojiFont = [NSFont fontWithName:@"AppleColorEmoji" size:emojiFontSize];
   NSRange currentFontRange = NSMakeRange(NSNotFound, 0);
   long i = 0;
   while (i < text.length) {
-    NSFont *charFont = [text attributesAtIndex:i effectiveRange:&currentFontRange][NSFontAttributeName];
-    if ([charFont.fontName isEqualTo: @"AppleColorEmoji"]) {
-      [text addAttributes:@{NSFontAttributeName: emojiFont} range:currentFontRange];
+    NSFont *charFont = [text attribute:NSFontAttributeName atIndex:i effectiveRange:&currentFontRange];
+    if ([charFont.fontName isEqualToString:@"AppleColorEmoji"]) {
+      NSFont *defaultFont = [NSFont systemFontOfSize:charFont.pointSize];
+      [text addAttribute:NSFontAttributeName value:defaultFont range:currentFontRange];
     }
     i = currentFontRange.location + currentFontRange.length;
   }
@@ -876,7 +867,7 @@ void changeEmojiSize(NSMutableAttributedString *text, CGFloat emojiFontSize) {
   }
 
   //Break line if the text is too long, based on screen size.
-  CGFloat textWidth = _view.text.size.width + _view.textFrameWidth * 2;
+  CGFloat textWidth = _view.text.size.width;
   NSFont *currentFont = theme.attrs[NSFontAttributeName];
   CGFloat fontScale = currentFont.pointSize / 12;
   CGFloat textWidthRatio = MIN(1.0, 1.0 / (theme.vertical ? 4 : 3) + fontScale / 12);
@@ -1164,9 +1155,8 @@ void changeEmojiSize(NSMutableAttributedString *text, CGFloat emojiFontSize) {
     [text appendAttributedString:line];
   }
 
-  // Change Emoji font size
-  NSFont *currentFont = theme.attrs[NSFontAttributeName];
-  changeEmojiSize(text, MAX(round(currentFont.pointSize * 0.8), currentFont.pointSize - 2));
+  // Fix font rendering
+  fixDefaultFont(text);
 
   // text done!
   [_view setText:text];
