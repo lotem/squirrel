@@ -34,7 +34,7 @@ style:
   # space between preedit and candidates in non-inline mode
   spacing: 10
 
-  #candidate_format: '%c. %@'
+  #candidate_format: '%c.\u00A0%@'
 
   # adjust the base line of vertical text
   #base_offset: 6
